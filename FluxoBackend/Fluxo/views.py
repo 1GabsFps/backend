@@ -1,36 +1,33 @@
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
 from django.shortcuts import render
 from django.http import JsonResponse
 import mercadopago
-from rest_framework import viewsets
 from .models import Cartao, User
-from cpf import validate_cpf
+from validate_docbr import CPF
+from django.contrib.auth.models import User
 
-# Configurar o SDK do Mercado Pago
 sdk = mercadopago.SDK("YOUR_ACCESS_TOKEN")
 
-class CadastroView(viewsets.ModelViewSet):
-    def create_user(request):
-        if request.method == 'POST':
-            user_data = {
-                "name": request.POST.get('name'),
-                "email": request.POST.get('email'),
-                "Cpf": request.POST.get('Cpf'),
-                "senha": request.POST.get('senha')
-            }
-            
-            if not validate_cpf(user_data['Cpf']):
-                return JsonResponse({"error": "Invalid CPF"}, status=400)
-            
-            if User.objects.filter(email=user_data['email']).exists():
-                return JsonResponse({"error": "User already exists"}, status=400)
-            elif User.objects.filter(Cpf=user_data['Cpf']).exists():
-                return JsonResponse({"error": "User already exists"}, status=400)
-            else:
-                User.objects.create(**user_data)
-                return JsonResponse({"success": "User created successfully"})
-            
+class CadastroView(APIView):
+    def post(self, request):
+        # Validação do CPF
+        cpf = request.data.get('cpf')
+        if not CPF().validate(cpf):
+            return Response({"error": "Invalid CPF"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Criação do usuário
+        user_data = {
+            "username": request.data.get('name'),
+            "password": request.data.get('password'),
+            "email": request.data.get('email')
+        }
+        user = User.objects.create_user(**user_data)
+        
+        return Response({"user": user.id}, status=status.HTTP_201_CREATED)
 
-class PagamentoView(viewsets.ModelViewSet):
+class PagamentoView(APIView):
     def create_payment(request):
         if request.method == 'POST':
             payment_data = {
@@ -58,7 +55,7 @@ class PagamentoView(viewsets.ModelViewSet):
         else:
             return JsonResponse({"error": "Invalid request method"}, status=400)
         
-class AtribuirCartao(viewsets.ModelViewSet):
+class AtribuirCartao(APIView):
     def assign_card(request):
         if request.method == 'POST':
-            
+            pass
