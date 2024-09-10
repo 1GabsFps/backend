@@ -49,6 +49,12 @@ class Cartao(models.Model):
     uuid = models.CharField(max_length=32)
     id_Proprietario = models.ForeignKey(User, on_delete=models.CASCADE)
     valido = models.BooleanField(default=True)
+    classe = models.CharField(max_length=10, choices=[
+        ('Normal', 'Normal'),
+        ('Estudante', 'Estudante'),
+        ('PCD', 'PCD'),
+        ('Idoso', 'Idoso')
+    ])
 
 class Faq(models.Model):
     id = models.AutoField(primary_key=True)
