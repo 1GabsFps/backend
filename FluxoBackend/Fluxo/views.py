@@ -1,12 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 import mercadopago
-from .models import Cartao, User
+from .models import Cartao, User, get_uuid
 from validate_docbr import CPF
-from django.contrib.auth.models import User
 
 sdk = mercadopago.SDK("YOUR_ACCESS_TOKEN")
 
@@ -21,14 +20,15 @@ class CadastroView(APIView):
         user_data = {
             "username": request.data.get('name'),
             "password": request.data.get('password'),
+            "cpf": cpf,
             "email": request.data.get('email')
         }
-        user = User.objects.create_user(**user_data)
-        
+        user = User.objects.create(**user_data)
+        user.save()
         return Response({"user": user.id}, status=status.HTTP_201_CREATED)
 
 class PagamentoView(APIView):
-    def create_payment(request):
+    def post(request):
         if request.method == 'POST':
             payment_data = {
                 "transaction_amount": float(request.POST.get('transaction_amount')),
@@ -56,6 +56,33 @@ class PagamentoView(APIView):
             return JsonResponse({"error": "Invalid request method"}, status=400)
         
 class AtribuirCartao(APIView):
-    def assign_card(request):
-        if request.method == 'POST':
-            pass
+    def post(self, request):
+        cpf = request.data.get('cpf')
+        user = get_object_or_404(User, cpf=cpf)
+        
+        # Tentativa de leitura do UUID do cartão a partir do leitor NFC
+        try:
+            uuid = get_uuid()
+            if not uuid:
+                return Response({"error": "Falha ao ler o UUID do cartão"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return Response({"error": f"Erro ao conectar com o leitor NFC: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        card = Cartao.objects.create(id_Proprietario=user, saldo=0, uuid=uuid)
+        return Response({"message": "Cartão atribuído com sucesso", "card_id": card.id}, status=status.HTTP_201_CREATED)
+    
+class PassarCartao(APIView):
+    def get(self, request, *args, **kwargs):
+        try:
+            uuid = get_uuid()
+            if not uuid:
+                return Response({"error": "Falha ao ler o UUID do cartão"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            cartao = get_object_or_404(Cartao, uuid=uuid)
+            if cartao.saldo < 2.50:
+                return Response({"error": "Saldo insuficiente"}, status=status.HTTP_400_BAD_REQUEST)
+            if cartao.saldo >= 2.50:
+                cartao.saldo -= 2.50
+                cartao.save()
+                return Response({"message": "Passagem realizada com sucesso", "saldo": cartao.saldo}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": f"Erro ao processar a requisição: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
