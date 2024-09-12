@@ -52,7 +52,7 @@ class Cartao(models.Model):
     classe = models.CharField(max_length=10, choices=[
         ('Normal', 'Normal'),
         ('Estudante', 'Estudante'),
-        ('PCD', 'PCD'),
+        ('Especial', 'Especial'),
         ('Idoso', 'Idoso')
     ])
 

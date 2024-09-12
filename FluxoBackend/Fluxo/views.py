@@ -6,6 +6,8 @@ from django.http import JsonResponse
 import mercadopago
 from .models import Cartao, User, get_uuid
 from validate_docbr import CPF
+import jwt
+from django.conf import settings
 
 sdk = mercadopago.SDK("YOUR_ACCESS_TOKEN")
 
@@ -26,7 +28,19 @@ class CadastroView(APIView):
         user = User.objects.create(**user_data)
         user.save()
         return Response({"user": user.id}, status=status.HTTP_201_CREATED)
+class LoginView(APIView):
+    def post(self, request):
+        cpf = request.data.get('cpf')
+        password = request.data.get('password')
+        user = get_object_or_404(User, cpf=cpf, password=password)
+        # Generate JWT token
+        payload = {
+            'user_id': user.id,
+            'username': user.username
+        }
+        token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
 
+        return Response({"token": token}, status=status.HTTP_200_OK)
 class PagamentoView(APIView):
     def post(request):
         if request.method == 'POST':
@@ -57,7 +71,11 @@ class PagamentoView(APIView):
         
 class AtribuirCartao(APIView):
     def post(self, request):
-        cpf = request.data.get('cpf')
+        token = request.get('Token')
+        token_decoded = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+        user_id = token_decoded.get('user_id')  
+        cpf = User.objects.get(id=user_id).cpf
+        classe = request.data.get('classe')
         user = get_object_or_404(User, cpf=cpf)
         
         # Tentativa de leitura do UUID do cartão a partir do leitor NFC
@@ -68,7 +86,7 @@ class AtribuirCartao(APIView):
         except Exception as e:
             return Response({"error": f"Erro ao conectar com o leitor NFC: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-        card = Cartao.objects.create(id_Proprietario=user, saldo=0, uuid=uuid)
+        card = Cartao.objects.create(id_Proprietario=user, saldo=0, uuid=uuid, classe=classe)
         return Response({"message": "Cartão atribuído com sucesso", "card_id": card.id}, status=status.HTTP_201_CREATED)
     
 class PassarCartao(APIView):
@@ -78,11 +96,29 @@ class PassarCartao(APIView):
             if not uuid:
                 return Response({"error": "Falha ao ler o UUID do cartão"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             cartao = get_object_or_404(Cartao, uuid=uuid)
-            if cartao.saldo < 2.50:
-                return Response({"error": "Saldo insuficiente"}, status=status.HTTP_400_BAD_REQUEST)
-            if cartao.saldo >= 2.50:
-                cartao.saldo -= 2.50
-                cartao.save()
-                return Response({"message": "Passagem realizada com sucesso", "saldo": cartao.saldo}, status=status.HTTP_200_OK)
+            classe_cartao = cartao.classe
+            match classe_cartao:
+                case 'Normal':
+                        if cartao.saldo >= 4.4:
+                            cartao.saldo -= 4.4
+                            cartao.save()
+                            return Response({"message": "Passagem realizada com sucesso", "saldo": cartao.saldo}, status=status.HTTP_200_OK)
+                        else:
+                            return Response({"error": "Saldo insuficiente"}, status=status.HTTP_400_BAD_REQUEST)
+                case 'Estudante':
+                    if cartao.saldo >= 2.2:
+                        cartao.saldo -= 2.2
+                        cartao.save()
+                        return Response({"message": "Passagem realizada com sucesso", "saldo": cartao.saldo}, status=status.HTTP_200_OK)
+                    else: 
+                        return Response({"error": "Saldo insuficiente"}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    
+                case 'Especial':
+                    return Response({"message": "Passagem realizada com sucesso", "saldo": cartao.saldo}, status=status.HTTP_200_OK)
+                case 'Idoso':
+                    return Response({"message": "Passagem realizada com sucesso", "saldo": cartao.saldo}, status=status.HTTP_200_OK)
+                
         except Exception as e:
             return Response({"error": f"Erro ao processar a requisição: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
