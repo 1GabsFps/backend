@@ -36,7 +36,9 @@ class LoginView(APIView):
         # Generate JWT token
         payload = {
             'user_id': user.id,
-            'username': user.username
+            'username': user.username,
+            'password' : user.password
+            
         }
         token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
 
@@ -122,3 +124,12 @@ class PassarCartao(APIView):
         except Exception as e:
             return Response({"error": f"Erro ao processar a requisição: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+
+class PegarUser(APIView):
+    def post(self, request):
+        token = request.data.get('token')
+        tokenBytes = token.encode('utf-8')
+        token_decoded = jwt.decode(tokenBytes, settings.SECRET_KEY, algorithms=['HS256'])
+        user_id = token_decoded.get('user_id')
+        user = get_object_or_404(User, id=user_id)
+        return Response({"user": user.username, "cpf": user.cpf, "email": user.email}, status=status.HTTP_200_OK)
