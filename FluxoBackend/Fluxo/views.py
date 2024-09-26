@@ -133,3 +133,13 @@ class PegarUser(APIView):
         user_id = token_decoded.get('user_id')
         user = get_object_or_404(User, id=user_id)
         return Response({"user": user.username, "cpf": user.cpf, "email": user.email}, status=status.HTTP_200_OK)
+    
+class PegarCartao(APIView):
+    def post(self, request):
+        token = request.data.get('token')
+        tokenBytes = token.encode('utf-8')
+        token_decoded = jwt.decode(tokenBytes, settings.SECRET_KEY, algorithms=['HS256'])
+        user_id = token_decoded.get('user_id')
+        user = get_object_or_404(User, id=user_id)
+        cartao = get_object_or_404(Cartao, id_Proprietario=user)
+        return Response({"saldo": cartao.saldo,  "classe": cartao.classe}, status=status.HTTP_200_OK)
