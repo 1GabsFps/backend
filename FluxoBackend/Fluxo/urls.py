@@ -7,4 +7,5 @@ urlpatterns = [
     path('passar_cartao/', views.PassarCartao.as_view(), name='passar_cartao'),
     path("login/", views.LoginView.as_view(), name="login"),
     path("getuser/" , views.PegarUser.as_view(), name="getuser"),
+    path("cartoes/", views.PegarCartao.as_view(), name="cartoes"),
 ]

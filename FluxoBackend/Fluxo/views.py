@@ -141,5 +141,18 @@ class PegarCartao(APIView):
         token_decoded = jwt.decode(tokenBytes, settings.SECRET_KEY, algorithms=['HS256'])
         user_id = token_decoded.get('user_id')
         user = get_object_or_404(User, id=user_id)
-        cartao = get_object_or_404(Cartao, id_Proprietario=user)
-        return Response({"saldo": cartao.saldo,  "classe": cartao.classe}, status=status.HTTP_200_OK)
+        cartoes = Cartao.objects.filter(id_Proprietario=user)
+        
+        if not cartoes.exists():
+            return Response({"error": "No cards found for this user"}, status=status.HTTP_404_NOT_FOUND)
+        
+        cartoes_data = {}
+        for cartao in cartoes:
+            cartaonum = f"cartao{cartao.id}"
+            cartoes_data[cartaonum] = {
+                "id": cartao.id,
+                "saldo": cartao.saldo,
+                "classe": cartao.classe,
+            }
+        
+        return Response(cartoes_data, status=status.HTTP_200_OK)
