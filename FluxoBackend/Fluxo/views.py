@@ -156,3 +156,17 @@ class PegarCartao(APIView):
             }
         
         return Response(cartoes_data, status=status.HTTP_200_OK)
+    
+class RecarregarCartao(APIView):
+    def post(self, request):
+    
+        tokenBytes = request.data.get('token')
+        token_decoded = jwt.decode(tokenBytes, settings.SECRET_KEY, algorithms=['HS256'])
+        user_id = token_decoded.get('user_id')
+        user = get_object_or_404(User, id=user_id)
+        cartao_id = request.data.get('cartao_id')
+        valor = float(request.data.get('valor'))
+        cartao = get_object_or_404(Cartao, id=cartao_id, id_Proprietario=user)
+        cartao.saldo += valor
+        cartao.save()
+        return Response({"message": "Cartão recarregado com sucesso", "saldo": cartao.saldo}, status=status.HTTP_200_OK)
