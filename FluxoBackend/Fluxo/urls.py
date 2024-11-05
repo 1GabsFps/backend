@@ -11,4 +11,5 @@ urlpatterns = [
     path("cartoes/", views.PegarCartao.as_view(), name="cartoes"),
     path("recarregar/", views.RecarregarCartao.as_view(), name="recarregar"),
     path("notifications/", notifications, name="notifications"),
+    path("faq/", views.QuestionsFaqView.as_view(), name="faq"),
 ]

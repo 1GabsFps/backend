@@ -4,7 +4,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 import mercadopago
-from .models import Cartao, User, get_uuid
+from .models import Cartao, User, get_uuid, Faq
 from validate_docbr import CPF
 import jwt
 from django.conf import settings
@@ -423,3 +423,17 @@ def payment_notification(request):
     else:
         logger.error("Invalid request method")
         return JsonResponse({"error": "Invalid request method"}, status=400)
+
+
+class QuestionsFaqView(APIView):
+    def get(self, request):
+        faqs = Faq.objects.all()
+        faqs_data = {}
+        for faq in faqs:
+            faqnum = f"faq{faq.id}"
+            faqs_data[faqnum] = {
+                "pergunta": faq.pergunta,
+                "resposta": faq.resposta,
+            }
+
+        return Response(faqs_data, status=status.HTTP_200_OK)
