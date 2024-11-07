@@ -192,7 +192,7 @@ class PegarUser(APIView):
         user_id = token_decoded.get("user_id")
         user = get_object_or_404(User, id=user_id)
         return Response(
-            {"user": user.username, "cpf": user.cpf, "email": user.email},
+            {"user": user.username, "cpf": user.cpf, "email": user.email },
             status=status.HTTP_200_OK,
         )
 
@@ -370,14 +370,33 @@ class RecarregarCartao(APIView):
             logger.exception("An error occurred while creating payment preference")
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                
             )
 
+
+class EditUser(APIView):
+    def Post(self, request):
+        token = request.data.get("token")
+        tokenBytes = token.encode("utf-8")
+        token_decoded = jwt.decode(
+            tokenBytes, settings.SECRET_KEY, algorithms=["HS256"]
+        )
+        user_id = token_decoded.get("user_id")
+        user = get_object_or_404(User, id=user_id)
+        user.password = request.data.get("password")
+        user.cpf = request.data.get("cpf")
+        user.email = request.data.get("email")
+        user.save()
+        return Response(
+            {"message": "User updated successfully"},
+            status=status.HTTP_200_OK,
+        )
 
 @csrf_exempt
 def payment_notification(request):
     if request.method == "POST":
-        data = request.GET.dict()  # Use request.GET para obter os parâmetros da URL
-        topic = data.get("type")  # O campo correto é "type" e não "topic"
+        data = request.GET.dict() 
+        topic = data.get("type") 
         if topic != "payment":
             logger.error("Invalid topic")
             return JsonResponse({"error": "Invalid topic"}, status=400)
