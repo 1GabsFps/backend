@@ -4,7 +4,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 import mercadopago
-from .models import Cartao, User, get_uuid, Faq
+from .models import Cartao, User, get_uuid, Faq, Transacao
 from validate_docbr import CPF
 import jwt
 from django.conf import settings
@@ -75,6 +75,14 @@ class PagamentoView(APIView):
                 Cartao = Cartao.objects.get(id_Proprietario=User)
                 Cartao.saldo += payment.get("transaction_amount")
                 Cartao.save()
+                # Save the transaction
+                transacao = Transacao(
+                    valor=payment.get("transaction_amount"),
+                    data=payment.get("date_approved"),
+                    id_cartao=Cartao,
+                    status=True,
+                )
+                transacao.save()
 
             return JsonResponse(payment)
         else:
@@ -192,7 +200,7 @@ class PegarUser(APIView):
         user_id = token_decoded.get("user_id")
         user = get_object_or_404(User, id=user_id)
         return Response(
-            {"user": user.username, "cpf": user.cpf, "email": user.email },
+            {"user": user.username, "cpf": user.cpf, "email": user.email},
             status=status.HTTP_200_OK,
         )
 
@@ -370,7 +378,6 @@ class RecarregarCartao(APIView):
             logger.exception("An error occurred while creating payment preference")
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                
             )
 
 
@@ -392,11 +399,12 @@ class EditUser(APIView):
             status=status.HTTP_200_OK,
         )
 
+
 @csrf_exempt
 def payment_notification(request):
     if request.method == "POST":
-        data = request.GET.dict() 
-        topic = data.get("type") 
+        data = request.GET.dict()
+        topic = data.get("type")
         if topic != "payment":
             logger.error("Invalid topic")
             return JsonResponse({"error": "Invalid topic"}, status=400)

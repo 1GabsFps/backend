@@ -1,6 +1,10 @@
 from django.db import models
 from django.utils import timezone
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    BaseUserManager,
+    PermissionsMixin,
+)
 from smartcard.Exceptions import NoCardException
 from smartcard.System import readers
 from smartcard.util import toHexString
@@ -37,39 +41,51 @@ def get_uuid(max_retries=5, wait_time=2):
                 print(f"Tentativa {attempt + 1} falhou: {e}")
                 time.sleep(wait_time)  # Espera antes de tentar novamente
     return None
+
+
 class User(models.Model):
     id = models.AutoField(primary_key=True)
     username = models.CharField(max_length=150)
     email = models.EmailField(max_length=255, unique=True)
     cpf = models.CharField(max_length=11, unique=True)
     password = models.CharField(max_length=255)
+
+
 class Cartao(models.Model):
     id = models.AutoField(primary_key=True)
     saldo = models.FloatField(default=0)
     uuid = models.CharField(max_length=32)
     id_Proprietario = models.ForeignKey(User, on_delete=models.CASCADE)
     valido = models.BooleanField(default=True)
-    classe = models.CharField(max_length=10, choices=[
-        ('Normal', 'Normal'),
-        ('Estudante', 'Estudante'),
-        ('Especial', 'Especial'),
-        ('Idoso', 'Idoso')
-    ])
+    classe = models.CharField(
+        max_length=10,
+        choices=[
+            ("Normal", "Normal"),
+            ("Estudante", "Estudante"),
+            ("Especial", "Especial"),
+            ("Idoso", "Idoso"),
+        ],
+    )
+
 
 class Faq(models.Model):
     id = models.AutoField(primary_key=True)
     pergunta = models.CharField(max_length=255)
     resposta = models.CharField(max_length=255)
 
+
 class Saldo(models.Model):
     valor = models.FloatField(default=0)
-    id_cartao = models.ForeignKey(Cartao, on_delete=models.CASCADE, related_name='saldo_cartao')
+    id_cartao = models.ForeignKey(
+        Cartao, on_delete=models.CASCADE, related_name="saldo_cartao"
+    )
+
 
 class Transacao(models.Model):
     id = models.AutoField(primary_key=True)
     valor = models.FloatField(default=0)
     data = models.DateTimeField()
-    id_cartao = models.ForeignKey(Cartao, on_delete=models.CASCADE, related_name='transacao_cartao')
+    id_cartao = models.ForeignKey(
+        Cartao, on_delete=models.CASCADE, related_name="transacao_cartao"
+    )
     status = models.BooleanField(default=True)
-    
-    
